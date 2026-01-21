@@ -12,19 +12,32 @@ Pod::Spec.new do |s|
   s.authors      = package["author"]
 
   s.platforms    = { :ios => "11.0" }
-  s.source       = { :git => "https://github.com/serenity-kit/react-native-libsodium.git", :tag => "#{s.version}" }
+  s.source       = { :git => "https://github.com/AlloLabs/react-native-libsodium.git", :tag => "#{s.version}" }
 
   s.source_files = "ios/**/*.{h,m,mm}", "cpp/**/*.{h,cpp}"
 
+  # Vendored xcframework containing libsodium
   s.vendored_frameworks = "libsodium/build/libsodium-apple/Clibsodium.xcframework"
+
+  # IMPORTANT: vendored_frameworks does NOT automatically add headers to the search path
+  # for the pod's own source files. We must explicitly add them.
+  # This fixes the "'sodium.h' file not found" error during compilation.
+  xcframework_path = "libsodium/build/libsodium-apple/Clibsodium.xcframework"
+  device_headers = "$(PODS_TARGET_SRCROOT)/#{xcframework_path}/ios-arm64_arm64e/Headers"
+  simulator_headers = "$(PODS_TARGET_SRCROOT)/#{xcframework_path}/ios-arm64_arm64e_x86_64-simulator/Headers"
+
+  s.pod_target_xcconfig = {
+    "HEADER_SEARCH_PATHS" => "$(inherited) \"#{device_headers}\" \"#{simulator_headers}\"",
+    "CLANG_CXX_LANGUAGE_STANDARD" => "c++17"
+  }
 
   s.dependency "React-Core"
 
   # Don't install the dependencies when we run `pod install` in the old architecture.
   if ENV['RCT_NEW_ARCH_ENABLED'] == '1' then
     s.compiler_flags = folly_compiler_flags + " -DRCT_NEW_ARCH_ENABLED=1"
-    s.pod_target_xcconfig    = {
-        "HEADER_SEARCH_PATHS" => "\"$(PODS_ROOT)/boost\"",
+    s.pod_target_xcconfig = {
+        "HEADER_SEARCH_PATHS" => "$(inherited) \"$(PODS_ROOT)/boost\" \"#{device_headers}\" \"#{simulator_headers}\"",
         "OTHER_CPLUSPLUSFLAGS" => "-DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1",
         "CLANG_CXX_LANGUAGE_STANDARD" => "c++17"
     }
