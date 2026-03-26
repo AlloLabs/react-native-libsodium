@@ -1,7 +1,6 @@
 export { base64_variants, to_string } from './libsodium-js-utils';
+import type { KeyPair, StringKeyPair } from './libsodium-types';
 import type {
-  KeyPair,
-  StringKeyPair,
   StringOutputFormat,
   Uint8ArrayOutputFormat,
 } from 'libsodium-wrappers';
@@ -10,6 +9,18 @@ import type { OutputFormat } from './types';
 import { convertToOutputFormat } from './utils';
 
 import { NativeModules } from 'react-native';
+
+const toArrayBuffer = (input: Uint8Array): ArrayBuffer => {
+  const buffer = input.buffer;
+  if (
+    buffer instanceof ArrayBuffer &&
+    input.byteOffset === 0 &&
+    input.byteLength === buffer.byteLength
+  ) {
+    return buffer;
+  }
+  return input.slice().buffer;
+};
 
 const Libsodium = NativeModules.Libsodium;
 
@@ -242,12 +253,12 @@ export const to_base64 = (
   variant?: base64_variants
 ): string => {
   const variantToUse = variant || base64_variants.URLSAFE_NO_PADDING;
-  const inputParam = typeof input === 'string' ? input : input.buffer;
+  const inputParam = typeof input === 'string' ? input : toArrayBuffer(input);
   return global.jsi_to_base64(inputParam, variantToUse);
 };
 
 export function to_hex(input: string | Uint8Array): string {
-  const inputParam = typeof input === 'string' ? input : input.buffer;
+  const inputParam = typeof input === 'string' ? input : toArrayBuffer(input);
   return global.jsi_to_hex(inputParam);
 }
 
@@ -262,7 +273,7 @@ export function randombytes_buf(
 export function randombytes_buf(
   length: number,
   outputFormat?: OutputFormat | null
-) {
+): unknown {
   const result = global.jsi_randombytes_buf(length);
   return convertToOutputFormat(result, outputFormat);
 }
@@ -286,8 +297,9 @@ export function crypto_auth(
   key: Uint8Array,
   outputFormat: OutputFormat
 ): unknown {
-  const messageParam = typeof message === 'string' ? message : message.buffer;
-  const result = global.jsi_crypto_auth(messageParam, key.buffer);
+  const messageParam =
+    typeof message === 'string' ? message : toArrayBuffer(message);
+  const result = global.jsi_crypto_auth(messageParam, toArrayBuffer(key));
   return convertToOutputFormat(result, outputFormat);
 }
 
@@ -305,8 +317,13 @@ export function crypto_auth_verify(
   message: string | Uint8Array,
   key: Uint8Array
 ): boolean {
-  const messageParam = typeof message === 'string' ? message : message.buffer;
-  return global.jsi_crypto_auth_verify(tag.buffer, messageParam, key.buffer);
+  const messageParam =
+    typeof message === 'string' ? message : toArrayBuffer(message);
+  return global.jsi_crypto_auth_verify(
+    toArrayBuffer(tag),
+    messageParam,
+    toArrayBuffer(key)
+  );
 }
 
 export function crypto_secretbox_keygen(
@@ -369,7 +386,7 @@ export function crypto_box_seed_keypair(
   seed: Uint8Array,
   outputFormat: OutputFormat
 ): unknown {
-  const result = global.jsi_crypto_box_seed_keypair(seed.buffer);
+  const result = global.jsi_crypto_box_seed_keypair(toArrayBuffer(seed));
   return {
     keyType: 'x25519',
     publicKey: convertToOutputFormat(result.publicKey, outputFormat),
@@ -404,7 +421,7 @@ export function crypto_sign_seed_keypair(
   seed: Uint8Array,
   outputFormat: OutputFormat
 ): unknown {
-  const result = global.jsi_crypto_sign_seed_keypair(seed.buffer);
+  const result = global.jsi_crypto_sign_seed_keypair(toArrayBuffer(seed));
   return {
     keyType: 'ed25519',
     publicKey: convertToOutputFormat(result.publicKey, outputFormat),
@@ -428,8 +445,12 @@ export function crypto_sign_detached(
   outputFormat: OutputFormat
 ): unknown {
   let result: ArrayBuffer;
-  const messageParam = typeof message === 'string' ? message : message.buffer;
-  result = global.jsi_crypto_sign_detached(messageParam, privateKey.buffer);
+  const messageParam =
+    typeof message === 'string' ? message : toArrayBuffer(message);
+  result = global.jsi_crypto_sign_detached(
+    messageParam,
+    toArrayBuffer(privateKey)
+  );
   return convertToOutputFormat(result, outputFormat);
 }
 
@@ -439,11 +460,12 @@ export function crypto_sign_verify_detached(
   publicKey: Uint8Array
 ): boolean {
   let result: boolean;
-  const messageParam = typeof message === 'string' ? message : message.buffer;
+  const messageParam =
+    typeof message === 'string' ? message : toArrayBuffer(message);
   result = global.jsi_crypto_sign_verify_detached(
-    signature.buffer,
+    toArrayBuffer(signature),
     messageParam,
-    publicKey.buffer
+    toArrayBuffer(publicKey)
   );
   return result;
 }
@@ -467,11 +489,12 @@ export function crypto_secretbox_easy(
   outputFormat: OutputFormat
 ): unknown {
   let result: ArrayBuffer;
-  const messageParam = typeof message === 'string' ? message : message.buffer;
+  const messageParam =
+    typeof message === 'string' ? message : toArrayBuffer(message);
   result = global.jsi_crypto_secretbox_easy(
     messageParam,
-    nonce.buffer,
-    key.buffer
+    toArrayBuffer(nonce),
+    toArrayBuffer(key)
   );
   return convertToOutputFormat(result, outputFormat);
 }
@@ -493,14 +516,14 @@ export function crypto_secretbox_open_easy(
   nonce: Uint8Array,
   key: Uint8Array,
   outputFormat: OutputFormat
-) {
+): unknown {
   let result: ArrayBuffer;
   const ciphertextParam =
-    typeof ciphertext === 'string' ? ciphertext : ciphertext.buffer;
+    typeof ciphertext === 'string' ? ciphertext : toArrayBuffer(ciphertext);
   result = global.jsi_crypto_secretbox_open_easy(
     ciphertextParam,
-    nonce.buffer,
-    key.buffer
+    toArrayBuffer(nonce),
+    toArrayBuffer(key)
   );
   return convertToOutputFormat(result, outputFormat);
 }
@@ -525,14 +548,15 @@ export function crypto_box_easy(
   publicKey: Uint8Array,
   privateKey: Uint8Array,
   outputFormat: OutputFormat
-) {
+): unknown {
   let result: ArrayBuffer;
-  const messageParam = typeof message === 'string' ? message : message.buffer;
+  const messageParam =
+    typeof message === 'string' ? message : toArrayBuffer(message);
   result = global.jsi_crypto_box_easy(
     messageParam,
-    nonce.buffer,
-    publicKey.buffer,
-    privateKey.buffer
+    toArrayBuffer(nonce),
+    toArrayBuffer(publicKey),
+    toArrayBuffer(privateKey)
   );
   return convertToOutputFormat(result, outputFormat);
 }
@@ -557,15 +581,15 @@ export function crypto_box_open_easy(
   publicKey: Uint8Array,
   privateKey: Uint8Array,
   outputFormat: OutputFormat
-) {
+): unknown {
   let result: ArrayBuffer;
   const ciphertextParam =
-    typeof ciphertext === 'string' ? ciphertext : ciphertext.buffer;
+    typeof ciphertext === 'string' ? ciphertext : toArrayBuffer(ciphertext);
   result = global.jsi_crypto_box_open_easy(
     ciphertextParam,
-    nonce.buffer,
-    publicKey.buffer,
-    privateKey.buffer
+    toArrayBuffer(nonce),
+    toArrayBuffer(publicKey),
+    toArrayBuffer(privateKey)
   );
   return convertToOutputFormat(result, outputFormat);
 }
@@ -584,11 +608,14 @@ export function crypto_box_seal(
   ciphertext: string | Uint8Array,
   publicKey: Uint8Array,
   outputFormat: OutputFormat
-) {
+): unknown {
   let result: ArrayBuffer;
   const ciphertextParam =
-    typeof ciphertext === 'string' ? ciphertext : ciphertext.buffer;
-  result = global.jsi_crypto_box_seal(ciphertextParam, publicKey.buffer);
+    typeof ciphertext === 'string' ? ciphertext : toArrayBuffer(ciphertext);
+  result = global.jsi_crypto_box_seal(
+    ciphertextParam,
+    toArrayBuffer(publicKey)
+  );
   return convertToOutputFormat(result, outputFormat);
 }
 
@@ -609,14 +636,14 @@ export function crypto_box_seal_open(
   publicKey: Uint8Array,
   privateKey: Uint8Array,
   outputFormat: OutputFormat
-) {
+): unknown {
   let result: ArrayBuffer;
   const ciphertextParam =
-    typeof ciphertext === 'string' ? ciphertext : ciphertext.buffer;
+    typeof ciphertext === 'string' ? ciphertext : toArrayBuffer(ciphertext);
   result = global.jsi_crypto_box_seal_open(
     ciphertextParam,
-    publicKey.buffer,
-    privateKey.buffer
+    toArrayBuffer(publicKey),
+    toArrayBuffer(privateKey)
   );
   return convertToOutputFormat(result, outputFormat);
 }
@@ -638,12 +665,13 @@ export function crypto_generichash(
   message: string | Uint8Array,
   key: Uint8Array | null | undefined,
   outputFormat: OutputFormat
-) {
-  const messageParam = typeof message === 'string' ? message : message.buffer;
+): unknown {
+  const messageParam =
+    typeof message === 'string' ? message : toArrayBuffer(message);
   const result = global.jsi_crypto_generichash(
     hash_length,
     messageParam,
-    key ? key.buffer : undefined
+    key ? toArrayBuffer(key) : undefined
   );
   return convertToOutputFormat(result, outputFormat);
 }
@@ -674,17 +702,17 @@ export function crypto_pwhash(
   memLimit: number,
   algorithm: number,
   outputFormat: OutputFormat
-) {
+): unknown {
   if (salt.length !== crypto_pwhash_SALTBYTES) {
     throw new Error('invalid salt length');
   }
   let result: ArrayBuffer;
   const passwordParam =
-    typeof password === 'string' ? password : password.buffer;
+    typeof password === 'string' ? password : toArrayBuffer(password);
   result = global.jsi_crypto_pwhash(
     keyLength,
     passwordParam,
-    salt.buffer,
+    toArrayBuffer(salt),
     opsLimit,
     memLimit,
     algorithm
@@ -696,7 +724,7 @@ export function crypto_sign_ed25519_pk_to_curve25519(
   outputFormat?: Uint8ArrayOutputFormat | null
 ) {
   const result = global.jsi_crypto_sign_ed25519_pk_to_curve25519(
-    publicKey.buffer
+    toArrayBuffer(publicKey)
   );
   return convertToOutputFormat(result, outputFormat);
 }
@@ -721,12 +749,12 @@ export function crypto_kdf_derive_from_key(
   ctx: string,
   key: Uint8Array,
   outputFormat: OutputFormat
-) {
+): unknown {
   const result = global.jsi_crypto_kdf_derive_from_key(
     subkey_len,
     subkey_id,
     ctx,
-    key.buffer
+    toArrayBuffer(key)
   );
   return convertToOutputFormat(result, outputFormat);
 }
@@ -754,9 +782,10 @@ export function crypto_aead_xchacha20poly1305_ietf_encrypt(
   public_nonce: Uint8Array,
   key: Uint8Array,
   outputFormat: OutputFormat
-) {
+): unknown {
   let result: ArrayBuffer;
-  const messageParam = typeof message === 'string' ? message : message.buffer;
+  const messageParam =
+    typeof message === 'string' ? message : toArrayBuffer(message);
   if (typeof additional_data !== 'string') {
     throw new Error(
       'crypto_aead_xchacha20poly1305_ietf_encrypt: input type not yet implemented'
@@ -765,8 +794,8 @@ export function crypto_aead_xchacha20poly1305_ietf_encrypt(
   result = global.jsi_crypto_aead_xchacha20poly1305_ietf_encrypt(
     messageParam,
     additional_data,
-    public_nonce.buffer,
-    key.buffer
+    toArrayBuffer(public_nonce),
+    toArrayBuffer(key)
   );
   return convertToOutputFormat(result, outputFormat);
 }
@@ -794,7 +823,7 @@ export function crypto_aead_xchacha20poly1305_ietf_decrypt(
   public_nonce: Uint8Array,
   key: Uint8Array,
   outputFormat: OutputFormat
-) {
+): unknown {
   let result: ArrayBuffer;
   if (typeof ciphertext === 'string') {
     throw new Error(
@@ -807,12 +836,12 @@ export function crypto_aead_xchacha20poly1305_ietf_decrypt(
     );
   }
   const ciphertextParam =
-    typeof ciphertext === 'string' ? ciphertext : ciphertext.buffer;
+    typeof ciphertext === 'string' ? ciphertext : toArrayBuffer(ciphertext);
   result = global.jsi_crypto_aead_xchacha20poly1305_ietf_decrypt(
     ciphertextParam,
     additional_data,
-    public_nonce.buffer,
-    key.buffer
+    toArrayBuffer(public_nonce),
+    toArrayBuffer(key)
   );
   return convertToOutputFormat(result, outputFormat);
 }
@@ -822,7 +851,10 @@ export function _unstable_crypto_kdf_hkdf_sha256_extract(
   salt: Uint8Array
 ) {
   return new Uint8Array(
-    global.jsi_crypto_kdf_hkdf_sha256_extract(key.buffer, salt.buffer)
+    global.jsi_crypto_kdf_hkdf_sha256_extract(
+      toArrayBuffer(key),
+      toArrayBuffer(salt)
+    )
   );
 }
 
@@ -832,7 +864,7 @@ export function _unstable_crypto_kdf_hkdf_sha256_expand(
   length: number
 ) {
   return new Uint8Array(
-    global.jsi_crypto_kdf_hkdf_sha256_expand(key.buffer, info, length)
+    global.jsi_crypto_kdf_hkdf_sha256_expand(toArrayBuffer(key), info, length)
   );
 }
 

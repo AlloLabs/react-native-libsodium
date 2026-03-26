@@ -1,6 +1,7 @@
 const path = require('path');
 const escape = require('escape-string-regexp');
-const exclusionList = require('metro-config/src/defaults/exclusionList');
+const { sep } = require('path');
+const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
 const pak = require('../package.json');
 
 const root = path.resolve(__dirname, '..');
@@ -9,7 +10,33 @@ const modules = Object.keys({
   ...pak.peerDependencies,
 });
 
-module.exports = {
+const baseExclusions = [/\/__tests__\/.*/];
+
+const escapeRegExp = (pattern) => {
+  if (pattern instanceof RegExp) {
+    return pattern.source.replace(/\/|\\\//g, `\\${sep}`);
+  }
+  if (typeof pattern === 'string') {
+    const escaped = pattern.replace(
+      /[\-\[\]\{\}\(\)\*\+\?\.\\\^\$\|]/g,
+      '\\$&'
+    );
+    return escaped.replaceAll('/', `\\${sep}`);
+  }
+  throw new Error(
+    `Expected exclusionList to be called with RegExp or string, got: ${typeof pattern}`
+  );
+};
+
+const exclusionList = (additionalExclusions) =>
+  new RegExp(
+    `(${(additionalExclusions || [])
+      .concat(baseExclusions)
+      .map(escapeRegExp)
+      .join('|')})$`
+  );
+
+const config = {
   projectRoot: __dirname,
   watchFolders: [root],
 
@@ -38,3 +65,5 @@ module.exports = {
     }),
   },
 };
+
+module.exports = mergeConfig(getDefaultConfig(__dirname), config);

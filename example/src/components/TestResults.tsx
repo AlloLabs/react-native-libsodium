@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import '../tests/_unstable_crypto_kdf_hkdf_sha256_expand_test';
 import '../tests/_unstable_crypto_kdf_hkdf_sha256_extract_test';
 import '../tests/constants_test';
@@ -49,9 +49,9 @@ export const TestResults: React.FC = () => {
   }, []);
 
   return (
-    <View style={{ flexDirection: 'column', gap: 8, padding: 16 }}>
+    <View style={styles.container}>
       {allTestsPassed != null && (
-        <Text style={{ fontSize: 20 }}>
+        <Text style={styles.statusText}>
           {allTestsPassed ? 'Tests passed' : 'Tests failed'}
         </Text>
       )}
@@ -61,29 +61,65 @@ export const TestResults: React.FC = () => {
             .concat(result.test.description)
             .join(' / ');
           return (
-            <View key={result.test.id} style={{ gap: 8 }}>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View key={result.test.id} style={styles.resultContainer}>
+              <View style={styles.row}>
                 <Text>{!result.success ? '❌' : '✅'}</Text>
-                <Text style={{ fontSize: 16 }}>{title}</Text>
+                <Text style={styles.title}>{title}</Text>
               </View>
               {!result.success && (
-                <Text style={{ fontSize: 16, color: 'red' }}>
-                  {'' + result.error}
-                </Text>
+                <Text style={styles.errorText}>{'' + result.error}</Text>
               )}
-              {!result.success &&
-                typeof result.error === 'object' &&
-                result.error &&
-                'stack' in result.error && (
-                  <View style={{ backgroundColor: '#ddd', padding: 16 }}>
-                    <Text style={{ fontFamily: 'monospace' }}>
-                      {result.error.stack}
-                    </Text>
+              {(() => {
+                if (
+                  result.success ||
+                  typeof result.error !== 'object' ||
+                  !result.error ||
+                  !('stack' in result.error)
+                ) {
+                  return null;
+                }
+                const stack = (result.error as { stack?: unknown }).stack;
+                return stack != null ? (
+                  <View style={styles.stackContainer}>
+                    <Text style={styles.stackText}>{String(stack)}</Text>
                   </View>
-                )}
+                ) : null;
+              })()}
             </View>
           );
         })}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'column',
+    gap: 8,
+    padding: 16,
+  },
+  statusText: {
+    fontSize: 20,
+  },
+  resultContainer: {
+    gap: 8,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  title: {
+    fontSize: 16,
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 16,
+  },
+  stackContainer: {
+    backgroundColor: '#ddd',
+    padding: 16,
+  },
+  stackText: {
+    fontFamily: 'monospace',
+  },
+});

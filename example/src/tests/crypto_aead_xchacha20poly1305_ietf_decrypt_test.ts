@@ -3,6 +3,7 @@ import {
   crypto_aead_xchacha20poly1305_ietf_NPUBBYTES,
   crypto_aead_xchacha20poly1305_ietf_decrypt,
   crypto_aead_xchacha20poly1305_ietf_keygen,
+  from_string,
   randombytes_buf,
   to_base64,
   to_string,
@@ -38,7 +39,7 @@ test('crypto_aead_xchacha20poly1305_ietf_decrypt', () => {
   try {
     encryptAndDecryptImage(threeMbImage);
     encryptAndDecryptImage(largeContent);
-  } catch (e) {
+  } catch {
     validImageEncryptionAndDecryption = false;
   }
 
@@ -103,7 +104,7 @@ test('crypto_aead_xchacha20poly1305_ietf_decrypt', () => {
   expect(() => {
     crypto_aead_xchacha20poly1305_ietf_decrypt(
       secretNonce,
-      message,
+      from_string(message),
       additionalData,
       randombytes_buf(crypto_aead_xchacha20poly1305_ietf_NPUBBYTES + 1),
       key
@@ -112,7 +113,7 @@ test('crypto_aead_xchacha20poly1305_ietf_decrypt', () => {
   expect(() => {
     crypto_aead_xchacha20poly1305_ietf_decrypt(
       secretNonce,
-      message,
+      from_string(message),
       additionalData,
       publicNonce,
       randombytes_buf(crypto_aead_xchacha20poly1305_ietf_KEYBYTES + 1)
